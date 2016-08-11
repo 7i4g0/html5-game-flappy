@@ -62,6 +62,7 @@ function getCookie(cname) {
         var c = ca[i].trim();
         if(c.indexOf(name)==0) return c.substring(name.length, c.length);
     }
+    return "";
 }
 
 function setCookie(cname, cvalue, exdays) {
@@ -97,7 +98,7 @@ function showSplash() {
 }
 
 function startGame() {
-    currentState = state.GameScreen;
+    currentState = states.GameScreen;
 
     $("#splash").stop();
     $("#splash").transition({ opacity:0 }, 500, 'ease');
@@ -130,7 +131,7 @@ function gameLoop() {
     updatePlayer(player);
 
     // Criar o hack de boudingbox para o player
-    var box = document.getElementById('player').getboudingClientRect();
+    var box = document.getElementById('player').getBoundingClientRect();
     var origwidth = 34.0;
     var origheight = 24.0;
 
@@ -155,6 +156,7 @@ function gameLoop() {
     if(pipes[0] == null)
         return;
 
+    //Determina a área para os próximos canos
     var nextpipe = pipes[0];
     var nextpipeupper = nextpipe.children('.pipe_upper');
 
@@ -210,6 +212,7 @@ function playerJump() {
     soundJump.play();
 }
 
+//Setar o BigScore
 function setBigScore(erase) {
     var elemscore = $("#bigscore");
     elemscore.empty();
@@ -222,3 +225,196 @@ function setBigScore(erase) {
         elemscore.append('<img src="assets/font_big_'+digits[i]+'.png" alt="'+digits[i]+'" />');
     }
 }
+
+//Setar o CurrentScore
+function setSmallScore() {
+    var elemscore = $("#currentscore");
+    elemscore.empty();
+
+    var digits = score.toString().split('');
+    for(var i=0; i<digits.length; i++){
+        elemscore.append('<img src="assets/font_small_'+digits[i]+'.png" alt="'+digits[i]+'" />');
+    }
+}
+
+//Setar o HighScore
+function setHighScore() {
+    var elemscore = $("#highscore");
+    elemscore.empty();
+
+    var digits = highscore.toString().split('');
+    for(var i=0; i<digits.length; i++){
+        elemscore.append('<img src="assets/font_small_'+digits[i]+'.png" alt="'+digits[i]+'" />');
+    }
+}
+
+//Setar a Medalha
+function setMedal() {
+    var elemmedal = $("#medal");
+    elemmedal.empty();
+
+    if(score < 10)
+        return false;
+
+    if(score >= 10)
+        medal = 'bronze';
+
+    if(score >= 20)
+        medal = 'silver';
+
+    if(score >= 30)
+        medal = 'gold';
+
+    if(score >= 40)
+        medal = 'platinum';
+
+        elemmedal.append('<img src="assets/medal_'+medal+'.png" alt="'+medal+'" />');
+
+        return true;
+}
+
+//Função para quando o player morrer
+function playerDead() {
+    //Pausa todas as animações
+    $(".animated").css('animation-play-state','paused');
+    $(".animated").css('-webkit-animation-play-state','paused');
+
+    //Dropar o Bird do footer
+    var playerbottom = $("#player").position().top + $("#player").width();
+    var floor = $("#flyarea-game").height();
+    var movey = Math.max(0, floor - playerbottom);
+    $("#player").transition({ y:movey+'px', rotate:90 }, 1000, 'easeInOutCubic');
+
+    currentState = states.ScoreScreen;
+
+    //Destroi todos os gameloops
+    clearInterval(loopGameloop);
+    clearInterval(loopPipeloop);
+    loopGameloop = null;
+    loopPipeloop = null;
+
+    //Mobile browsers não suportam buzz bindOnce event
+    if(isIncompatible.any()) {
+        //mostra o score
+        showScore();
+    } else {
+        //Começa o hit sound e depois o som de morte e depois mostra o score
+        soundHit.play().bindOnce("ended", function() {
+            soundDie.play().bindOnce("ended", function() {
+                showScore();
+            });
+        });
+    }
+}
+
+//Função para mostrar o Score final
+function showScore() {
+    //mostra o quadro de score
+    $("#scoreboard").css('display', 'block');
+
+    //Remove o bigScore da Tela
+    setBigScore(true);
+
+    //Se o score obtido for maior que o atual
+    if(score > highscore) {
+        //Salva o Score
+        highscore = score;
+        setCookie("highscore", highscore, 999);
+    }
+
+    //Muda o quadro de score
+    setSmallScore();
+    setHighScore();
+    var wonmedal = setMedal();
+
+    //Som de Swoosh
+    soundSwoosh.stop();
+    soundSwoosh.play();
+
+    //Mostra o quadro de Score
+    $("#scoreboard").css({ y: '40px', opacity:0 });
+    $("#replay").css({ y: '40px', opacity:0 });
+    $("#scoreboard").transition({ y: '40px', opacity:1 }, 600, 'ease', function() {
+        //Quando a animação terminar, começa o Swoosh
+        soundSwoosh.stop();
+        soundSwoosh.play();
+        $("#replay").transition({ y: '0px', opacity:1 }, 600, 'ease');
+
+        if(wonmedal) {
+            $("#medal").css({ scale: 2, opacity: 0});
+            $("#medal").css({ opacity: 1, scale: 1 }, 1200, 'ease');
+        }
+    });
+
+    //Deixa o botão de replay com clique
+    replayClickable = true;
+}
+
+$("#replay").click(function() {
+    //Ação de replay com clique
+    if(!replayClickable)
+        return;
+    else
+        replayClickable = false;
+
+    soundSwoosh.stop();
+    soundSwoosh.play();
+
+    $("#scoreboard").transition({ y: '-40px', opacity:1 }, 1000, 'ease', function() {
+        //esconde o quadro do Score
+        $("#scoreboard").css("display", "none");
+
+        //Começa o game over e mostra a splash screen
+        showSplash();
+    });
+});
+
+//Função para armazenar a pontuação do jogador
+function playerScore() {
+    score += 1;
+    soundScore.stop();
+    soundScore.play();
+    setBigScore();
+}
+
+//Função para ir mostrando e mudar os canos
+function updatePipes() {
+    //existe algum cano para remover?
+    $(".pipe").filter(function() {
+        return $(this).position().left <= -100;
+    }).remove();
+
+    //Add um novo cano
+    var padding = 80;
+    var constraint = 420 - pipeHeight - (padding * 2);
+    var topheight = Math.floor((Math.random()*constraint) + padding);
+    var bottomheight = (420 - pipeHeight) - topheight;
+    var newpipe = $('<div class="pipe animated"><div class="pipe_upper" style="height:'+topheight+'px;"></div><div class="pipe_lower" style="height:'+bottomheight+'px;"></div></div>');
+    $("#flyarea-game").append(newpipe);
+    pipes.push(newpipe);
+}
+
+// Definindo o suporte dos navegadores para o event Buzz definido anteriormente
+   var isIncompatible = {
+         Android: function() {
+         return navigator.userAgent.match(/Android/i);
+         },
+         BlackBerry: function() {
+         return navigator.userAgent.match(/BlackBerry/i);
+         },
+         iOS: function() {
+         return navigator.userAgent.match(/iPhone|iPad|iPod/i);
+         },
+         Opera: function() {
+         return navigator.userAgent.match(/Opera Mini/i);
+         },
+         Safari: function() {
+         return (navigator.userAgent.match(/OS X.*Safari/) && ! navigator.userAgent.match(/Chrome/));
+         },
+         Windows: function() {
+         return navigator.userAgent.match(/IEMobile/i);
+         },
+         any: function() {
+         return (isIncompatible.Android() || isIncompatible.BlackBerry() || isIncompatible.iOS() || isIncompatible.Opera() || isIncompatible.Safari() || isIncompatible.Windows());
+         }
+};

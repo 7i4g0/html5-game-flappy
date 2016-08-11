@@ -145,10 +145,10 @@
 
 @keyframes animPipe {
     0% {
-        background-position: 0px 0px;
+        left: 900px;
     }
     100% {
-        background-position: 0px -96px;
+        left: -100px;
     }
 }
 @-webkit-keyframes animPipe {
@@ -392,9 +392,9 @@ html, body {
     width: 52px;
     height: 100%;
     z-index: 2;
-    -webkit-animation: animPipe 755ms infinite;
-    -moz-animation: animPipe 755ms infinite;
-    animation: animPipe 755ms infinite;
+    -webkit-animation: animPipe 7500ms linear;
+    -moz-animation: animPipe 7500ms linear;
+    animation: animPipe 7500ms linear;
 }
 
 /* Configurações para o cano do topo */
