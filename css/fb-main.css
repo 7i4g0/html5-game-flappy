@@ -193,6 +193,7 @@ html, body {
     max-width: 767px;
     height: 100%;
     min-height: 525px;
+    overflow: hidden;
 }
 
 /* Tela do jogo */
